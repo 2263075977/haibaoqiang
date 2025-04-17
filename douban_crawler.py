@@ -19,6 +19,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 
+# 导入自定义chrome选项
+from chrome_options import get_chrome_options
+
 # 抑制WebDriver Manager的日志输出
 os.environ['WDM_LOG_LEVEL'] = '0'
 os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
@@ -37,26 +40,8 @@ load_dotenv()
 
 class DoubanCrawler:
     def __init__(self):
-        # 配置Chrome选项
-        self.chrome_options = Options()
-        self.chrome_options.add_argument("--headless")  # 无头模式，不显示浏览器窗口
-        self.chrome_options.add_argument("--disable-gpu")
-        self.chrome_options.add_argument("--no-sandbox")
-        self.chrome_options.add_argument("--disable-dev-shm-usage")
-        self.chrome_options.add_argument("--window-size=1920,1080")
-        
-        # 添加忽略SSL错误的选项
-        self.chrome_options.add_argument("--ignore-certificate-errors")
-        self.chrome_options.add_argument("--ignore-ssl-errors")
-        self.chrome_options.add_argument("--allow-insecure-localhost")
-        
-        # 禁用所有日志输出
-        self.chrome_options.add_argument("--log-level=3")  # 只显示FATAL错误
-        self.chrome_options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
-        self.chrome_options.add_experimental_option('useAutomationExtension', False)
-        
-        # 添加真实的User-Agent
-        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
+        # 使用优化的chrome选项
+        self.chrome_options = get_chrome_options()
         
         # 从环境变量中读取Cookie
         self.cookies = []
@@ -99,26 +84,16 @@ class DoubanCrawler:
                 
                 while retry_count < max_retries:
                     try:
-                        # 检查环境变量中是否指定了ChromeDriver路径
-                        chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
-                        chrome_path = os.environ.get('CHROME_PATH')
-                        
-                        if chromedriver_path and os.path.exists(chromedriver_path):
-                            print(f"使用指定的ChromeDriver路径: {chromedriver_path}")
-                            service = Service(executable_path=chromedriver_path)
+                        # 检查环境变量，判断是否在Docker环境中
+                        if os.environ.get('WDM_LOCAL') == '1' and os.environ.get('WDM_CHROMEDRIVER_PATH'):
+                            # Docker环境下使用预先下载的ChromeDriver
+                            chromedriver_path = os.environ.get('WDM_CHROMEDRIVER_PATH')
+                            print(f"使用预先下载的ChromeDriver: {chromedriver_path}")
+                            service = Service(chromedriver_path)
                         else:
+                            # 正常环境下使用webdriver-manager下载
                             print("使用webdriver-manager下载ChromeDriver")
                             service = Service(ChromeDriverManager().install())
-                        
-                        # 如果指定了Chrome路径，添加到选项中
-                        if chrome_path and os.path.exists(chrome_path):
-                            print(f"使用指定的Chrome路径: {chrome_path}")
-                            self.chrome_options.binary_location = chrome_path
-                        
-                        # 为Docker环境添加额外参数
-                        self.chrome_options.add_argument('--no-sandbox')
-                        self.chrome_options.add_argument('--disable-dev-shm-usage')
-                        self.chrome_options.add_argument('--remote-debugging-port=9222')
                         
                         self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
                         

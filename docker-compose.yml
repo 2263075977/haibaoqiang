@@ -14,18 +14,15 @@ services:
       - DOUBAN_LL=${DOUBAN_LL}
       - DOUBAN_DBCL2=${DOUBAN_DBCL2}
       - DOUBAN_CK=${DOUBAN_CK}
-      - CHROME_PATH=/usr/bin/google-chrome
-      - CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
+      # 设置Chrome的无头模式参数
+      - CHROME_NO_SANDBOX=true
+      - WDM_LOCAL=1
+      - WDM_CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
     volumes:
-      - douban_chrome:/root/.config/chromium # 持久化Chrome配置，提高稳定性
-      - /tmp:/tmp # 共享/tmp目录，解决Chrome临时文件问题
-    healthcheck:
-      test: ["CMD", "python", "healthcheck.py"]
-      interval: 1m
-      timeout: 30s
-      retries: 3
-      start_period: 30s
-    shm_size: 2gb  # 增加共享内存大小，防止Chrome崩溃
-
-volumes:
-  douban_chrome: 
+      # 持久化Chrome配置和缓存
+      - ./chrome_data:/root/.config/chrome
+      - ./chrome_cache:/root/.cache/google-chrome
+      # 共享时区设置
+      - /etc/localtime:/etc/localtime:ro
+    # 增加共享内存大小，提高Chrome稳定性
+    shm_size: 1gb 

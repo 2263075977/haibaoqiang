@@ -11,32 +11,28 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libgconf-2-4 \
     libfontconfig1 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    xdg-utils \
+    ca-certificates \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装固定版本的Chrome (114.0.5735.90)
-RUN wget -q https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.90-1_amd64.deb \
+# 安装特定版本的Chrome
+# 使用Chrome 114版本，这个版本有稳定的ChromeDriver
+ARG CHROME_VERSION="114.0.5735.90-1"
+RUN wget -q -O chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}_amd64.deb \
     && apt-get update \
-    && apt-get install -y ./google-chrome-stable_114.0.5735.90-1_amd64.deb \
-    && rm ./google-chrome-stable_114.0.5735.90-1_amd64.deb \
+    && apt install -y ./chrome.deb \
+    && rm chrome.deb \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装匹配的ChromeDriver
-RUN wget -q https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip \
-    && unzip chromedriver_linux64.zip \
-    && mv chromedriver /usr/local/bin/ \
-    && chmod +x /usr/local/bin/chromedriver \
-    && rm chromedriver_linux64.zip
+# 设置Chrome路径环境变量
+ENV CHROME_PATH=/usr/bin/google-chrome
+
+# 手动下载匹配的ChromeDriver
+RUN CHROMEDRIVER_VERSION=$(google-chrome --version | grep -oP "Chrome \K[0-9]+") \
+    && wget -q -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip" \
+    && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
+    && rm /tmp/chromedriver.zip \
+    && chmod +x /usr/local/bin/chromedriver
 
 # 复制项目文件
 COPY requirements.txt .
@@ -46,10 +42,9 @@ COPY . .
 
 # 环境变量配置
 ENV PYTHONUNBUFFERED=1
-# 设置ChromeDriver路径
-ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
-# 设置Chrome路径
-ENV CHROME_PATH=/usr/bin/google-chrome
+# 禁用自动下载ChromeDriver，使用预先下载的版本
+ENV WDM_LOCAL=1
+ENV WDM_CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
 
 # 暴露API端口
 EXPOSE 8000
