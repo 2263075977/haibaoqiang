@@ -19,9 +19,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 
-# 导入自定义chrome选项
-from chrome_options import get_chrome_options
-
 # 抑制WebDriver Manager的日志输出
 os.environ['WDM_LOG_LEVEL'] = '0'
 os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
@@ -40,8 +37,26 @@ load_dotenv()
 
 class DoubanCrawler:
     def __init__(self):
-        # 使用优化的chrome选项
-        self.chrome_options = get_chrome_options()
+        # 配置Chrome选项
+        self.chrome_options = Options()
+        self.chrome_options.add_argument("--headless")  # 无头模式，不显示浏览器窗口
+        self.chrome_options.add_argument("--disable-gpu")
+        self.chrome_options.add_argument("--no-sandbox")
+        self.chrome_options.add_argument("--disable-dev-shm-usage")
+        self.chrome_options.add_argument("--window-size=1920,1080")
+        
+        # 添加忽略SSL错误的选项
+        self.chrome_options.add_argument("--ignore-certificate-errors")
+        self.chrome_options.add_argument("--ignore-ssl-errors")
+        self.chrome_options.add_argument("--allow-insecure-localhost")
+        
+        # 禁用所有日志输出
+        self.chrome_options.add_argument("--log-level=3")  # 只显示FATAL错误
+        self.chrome_options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
+        self.chrome_options.add_experimental_option('useAutomationExtension', False)
+        
+        # 添加真实的User-Agent
+        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
         
         # 从环境变量中读取Cookie
         self.cookies = []
@@ -84,20 +99,7 @@ class DoubanCrawler:
                 
                 while retry_count < max_retries:
                     try:
-                        # 首先检查预先下载的ChromeDriver
-                        if os.path.exists('/usr/local/bin/chromedriver'):
-                            print("使用预先下载的ChromeDriver: /usr/local/bin/chromedriver")
-                            service = Service('/usr/local/bin/chromedriver')
-                        # 再检查环境变量中指定的ChromeDriver
-                        elif os.environ.get('WDM_CHROMEDRIVER_PATH'):
-                            chromedriver_path = os.environ.get('WDM_CHROMEDRIVER_PATH')
-                            print(f"使用环境变量指定的ChromeDriver: {chromedriver_path}")
-                            service = Service(chromedriver_path)
-                        # 否则尝试使用webdriver-manager下载
-                        else:
-                            print("使用webdriver-manager下载ChromeDriver")
-                            service = Service(ChromeDriverManager().install())
-                        
+                        service = Service(ChromeDriverManager().install())
                         self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
                         
                         # 设置页面加载超时
