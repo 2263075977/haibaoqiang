@@ -56,7 +56,7 @@ class DoubanCrawler:
         self.chrome_options.add_experimental_option('useAutomationExtension', False)
         
         # 添加真实的User-Agent
-        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
+        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
         
         # 从环境变量中读取Cookie
         self.cookies = []
