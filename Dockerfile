@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     unzip \
+    curl \
     libglib2.0-0 \
     libnss3 \
     libgconf-2-4 \
@@ -15,24 +16,36 @@ RUN apt-get update && apt-get install -y \
     fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装特定版本的Chrome
-# 使用Chrome 114版本，这个版本有稳定的ChromeDriver
-ARG CHROME_VERSION="114.0.5735.90-1"
-RUN wget -q -O chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}_amd64.deb \
+# 安装Chrome使用官方仓库
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
     && apt-get update \
-    && apt install -y ./chrome.deb \
-    && rm chrome.deb \
+    && apt-get install -y google-chrome-stable \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置Chrome路径环境变量
 ENV CHROME_PATH=/usr/bin/google-chrome
 
-# 手动下载匹配的ChromeDriver
-RUN CHROMEDRIVER_VERSION=$(google-chrome --version | grep -oP "Chrome \K[0-9]+") \
-    && wget -q -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip" \
+# 检查Chrome版本并下载对应的ChromeDriver
+RUN echo "正在获取Chrome版本..." \
+    && google-chrome --version || echo "Chrome版本检测失败" \
+    && CHROME_VERSION=$(google-chrome --version | grep -oP "Chrome \K[0-9]+\.[0-9]+\.[0-9]+") \
+    && echo "解析到Chrome版本: ${CHROME_VERSION}" \
+    && CHROME_MAJOR_VERSION="${CHROME_VERSION%%.*}" \
+    && echo "Chrome主版本: ${CHROME_MAJOR_VERSION}" \
+    && echo "尝试获取ChromeDriver版本..." \
+    && CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR_VERSION}") \
+    && echo "获取到ChromeDriver版本: ${CHROMEDRIVER_VERSION}" \
+    && echo "开始下载ChromeDriver..." \
+    && wget -q -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" \
+    && echo "解压ChromeDriver..." \
     && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
     && rm /tmp/chromedriver.zip \
-    && chmod +x /usr/local/bin/chromedriver
+    && chmod +x /usr/local/bin/chromedriver \
+    && echo "ChromeDriver安装完成" \
+    && ls -la /usr/local/bin/chromedriver \
+    && /usr/local/bin/chromedriver --version
 
 # 复制项目文件
 COPY requirements.txt .
