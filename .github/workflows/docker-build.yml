@@ -34,17 +34,19 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=long
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=ref,event=branch,suffix=-selenium
+            type=ref,event=pr,suffix=-selenium
+            type=semver,pattern={{version}},suffix=-selenium
+            type=semver,pattern={{major}}.{{minor}},suffix=-selenium
+            type=sha,format=long,suffix=-selenium
+            type=raw,value=selenium
+            type=raw,value=latest-selenium,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
+          file: ./Dockerfile.selenium
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

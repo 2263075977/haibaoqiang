@@ -2,7 +2,10 @@ version: '3'
 
 services:
   douban-notion-api:
-    image: ${IMAGE_NAME:-ghcr.io/your-username/douban-notion:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.selenium
+    image: ${IMAGE_NAME:-ghcr.io/your-username/douban-notion:selenium}
     container_name: douban-notion-api
     restart: unless-stopped
     ports:

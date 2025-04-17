@@ -29,19 +29,18 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装固定版本的Chrome (版本 125.0.6422.141)
-RUN wget -q https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_125.0.6422.141-1_amd64.deb \
+# 安装固定版本的Chrome
+RUN wget -q https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.198-1_amd64.deb \
     && apt-get update \
-    && apt-get install -y ./google-chrome-stable_125.0.6422.141-1_amd64.deb \
-    && rm ./google-chrome-stable_125.0.6422.141-1_amd64.deb
+    && apt-get install -y ./google-chrome-stable_114.0.5735.198-1_amd64.deb \
+    && rm ./google-chrome-stable_114.0.5735.198-1_amd64.deb
 
-# 安装固定版本的ChromeDriver (版本 125.0.6422.141)
-RUN wget -q https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/125.0.6422.141/linux64/chromedriver-linux64.zip \
-    && unzip chromedriver-linux64.zip \
-    && mv chromedriver-linux64/chromedriver /usr/bin/chromedriver \
+# 安装固定版本的ChromeDriver
+RUN wget -q https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip \
+    && unzip chromedriver_linux64.zip \
+    && mv chromedriver /usr/bin/chromedriver \
     && chmod +x /usr/bin/chromedriver \
-    && rm chromedriver-linux64.zip \
-    && rm -rf chromedriver-linux64
+    && rm chromedriver_linux64.zip
 
 # 复制依赖文件并安装依赖
 COPY requirements.txt .
