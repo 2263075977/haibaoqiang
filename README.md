@@ -131,19 +131,7 @@ MIT
 
 ## Docker部署
 
-### 使用Selenium官方镜像（推荐）
-
-本项目现在使用Selenium官方镜像，提供更稳定的Chrome和ChromeDriver支持：
-
-```bash
-docker run -d --name douban-notion-api \
-  -p 8000:8000 \
-  -e NOTION_TOKEN=your_token_here \
-  -e NOTION_DATABASE_ID=your_database_id_here \
-  ghcr.io/your-username/douban-notion:selenium
-```
-
-### 使用预构建镜像（原版）
+### 使用预构建镜像
 
 ```bash
 docker run -d --name douban-notion-api \
@@ -182,7 +170,7 @@ docker-compose up -d
 
 1. 在群晖DSM中打开Docker应用
 2. 在"注册表"中搜索`ghcr.io/your-username/douban-notion`
-3. 选择并下载带有`selenium`标签的镜像版本（推荐）
+3. 下载最新版本镜像
 4. 在"映像"中找到下载的镜像，点击"启动"
 5. 配置端口映射：8000 -> 8000
 6. 添加环境变量：
@@ -212,22 +200,6 @@ docker-compose up -d
    # 启动服务
    docker-compose up -d
    ```
-
-## 特别说明：Selenium官方镜像
-
-本项目提供了基于Selenium官方镜像（selenium/standalone-chrome）的版本，解决了ChromeDriver兼容性问题。与普通镜像相比：
-
-1. **优势**：
-   - Chrome和ChromeDriver版本匹配，避免兼容性问题
-   - 内置VNC服务器，可以远程查看浏览器运行状态
-   - 由Selenium官方维护，稳定性更高
-
-2. **使用VNC查看浏览器运行状态**：
-   如果需要调试，可以通过以下步骤查看浏览器运行状态：
-   ```bash
-   docker run -d -p 8000:8000 -p 5900:5900 -e VNC_NO_PASSWORD=1 ghcr.io/your-username/douban-notion:selenium
-   ```
-   然后使用VNC客户端连接到 `your-server-ip:5900`
 
 ## GitHub自动构建
 
