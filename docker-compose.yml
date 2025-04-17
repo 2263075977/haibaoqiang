@@ -15,4 +15,20 @@ services:
       - DOUBAN_DBCL2=${DOUBAN_DBCL2}
       - DOUBAN_CK=${DOUBAN_CK}
     volumes:
-      - ~/.config/chromium:/root/.config/chromium  # 持久化Chrome配置，提高稳定性 
+      - douban-chrome-data:/root/.config/chromium  # 持久化Chrome配置，提高稳定性
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    shm_size: 1gb  # 增加共享内存大小，解决Chrome崩溃问题
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
+
+volumes:
+  douban-chrome-data: 

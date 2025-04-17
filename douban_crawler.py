@@ -37,56 +37,141 @@ load_dotenv()
 
 class DoubanCrawler:
     def __init__(self):
-        """初始化爬虫"""
-        self.browser = None
-        self.init_browser()
+        # 配置Chrome选项
+        self.chrome_options = Options()
+        self.chrome_options.add_argument("--headless")  # 无头模式，不显示浏览器窗口
+        self.chrome_options.add_argument("--disable-gpu")
+        self.chrome_options.add_argument("--no-sandbox")
+        self.chrome_options.add_argument("--disable-dev-shm-usage")
+        self.chrome_options.add_argument("--window-size=1920,1080")
         
-    def init_browser(self):
-        """初始化浏览器"""
-        try:
-            chrome_options = Options()
-            chrome_options.add_argument('--headless')  # 无头模式
-            chrome_options.add_argument('--no-sandbox')  # Docker环境必需
-            chrome_options.add_argument('--disable-dev-shm-usage')  # Docker环境必需
-            chrome_options.add_argument('--disable-gpu')  # 禁用GPU加速
-            chrome_options.add_argument('--disable-extensions')  # 禁用扩展
-            chrome_options.add_argument('--disable-software-rasterizer')  # 禁用软件光栅化
-            chrome_options.add_argument('--ignore-certificate-errors')  # 忽略证书错误
-            chrome_options.add_argument('--disable-blink-features=AutomationControlled')  # 禁用自动化控制检测
+        # 添加忽略SSL错误的选项
+        self.chrome_options.add_argument("--ignore-certificate-errors")
+        self.chrome_options.add_argument("--ignore-ssl-errors")
+        self.chrome_options.add_argument("--allow-insecure-localhost")
+        
+        # 禁用所有日志输出
+        self.chrome_options.add_argument("--log-level=3")  # 只显示FATAL错误
+        self.chrome_options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
+        self.chrome_options.add_experimental_option('useAutomationExtension', False)
+        
+        # 添加真实的User-Agent
+        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
+        
+        # 从环境变量中读取Cookie
+        self.cookies = []
+        bid = os.getenv("DOUBAN_BID")
+        ll = os.getenv("DOUBAN_LL")
+        dbcl2 = os.getenv("DOUBAN_DBCL2")
+        ck = os.getenv("DOUBAN_CK")
+        
+        # 准备Cookie
+        if bid:
+            self.cookies.append({"name": "bid", "value": bid, "domain": ".douban.com"})
+        if ll:
+            self.cookies.append({"name": "ll", "value": f'"{ll}"', "domain": ".douban.com"})
+        if dbcl2:
+            self.cookies.append({"name": "dbcl2", "value": f'"{dbcl2}"', "domain": ".douban.com"})
+        if ck:
+            self.cookies.append({"name": "ck", "value": ck, "domain": ".douban.com"})
             
-            # 设置Chrome和ChromeDriver路径
-            chrome_bin = os.getenv('CHROME_BIN', '/usr/bin/google-chrome')
-            chromedriver_path = os.getenv('CHROMEDRIVER_PATH', 'chromedriver')
+        # 豆瓣电影搜索URL
+        self.search_url = "https://search.douban.com/movie/subject_search?search_text={}&cat=1002"
+        
+        # 驱动初始化标志
+        self.driver = None
+        
+    def _initialize_driver(self):
+        """初始化浏览器驱动"""
+        if self.driver is None:
+            print("初始化Chrome浏览器...")
             
-            if os.path.exists(chrome_bin):
-                chrome_options.binary_location = chrome_bin
+            # 临时重定向标准输出以抑制ChromeDriver和TensorFlow的消息
+            original_stdout = sys.stdout
+            original_stderr = sys.stderr
+            sys.stdout = open(os.devnull, 'w')
+            sys.stderr = open(os.devnull, 'w')
             
-            # 尝试使用环境变量中的ChromeDriver路径
-            if os.path.exists(chromedriver_path):
-                self.browser = webdriver.Chrome(
-                    executable_path=chromedriver_path,
-                    options=chrome_options
-                )
-            else:
-                # 如果环境变量中的路径不存在，使用默认方式
-                self.browser = webdriver.Chrome(options=chrome_options)
+            try:
+                # 设置重试次数
+                max_retries = 3
+                retry_count = 0
                 
-            self.browser.set_page_load_timeout(30)  # 设置页面加载超时
-            self.browser.implicitly_wait(10)  # 设置隐式等待时间
-            
-        except Exception as e:
-            print(f"初始化浏览器失败: {str(e)}")
-            raise
+                while retry_count < max_retries:
+                    try:
+                        # 修改为直接使用预装的ChromeDriver
+                        chrome_options = self.chrome_options
+                        
+                        # 添加Docker环境特有的选项
+                        chrome_options.add_argument('--no-sandbox')
+                        chrome_options.add_argument('--disable-dev-shm-usage')
+                        chrome_options.add_argument('--headless')
+                        chrome_options.add_argument('--disable-gpu')
+                        
+                        # 检查是否在Docker环境中
+                        if os.path.exists('/.dockerenv'):
+                            print("检测到Docker环境，使用预装的ChromeDriver")
+                            # 在Docker中，直接使用预装的ChromeDriver
+                            self.driver = webdriver.Chrome(options=chrome_options)
+                        else:
+                            # 非Docker环境，使用webdriver-manager
+                            print("非Docker环境，使用webdriver-manager")
+                            service = Service(ChromeDriverManager().install())
+                            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                        
+                        # 设置页面加载超时
+                        self.driver.set_page_load_timeout(30)
+                        
+                        # 先访问豆瓣主页，然后添加Cookie
+                        if self.cookies:
+                            try:
+                                self.driver.get("https://www.douban.com")
+                                print("添加Cookie...")
+                                for cookie in self.cookies:
+                                    try:
+                                        self.driver.add_cookie(cookie)
+                                    except Exception as e:
+                                        print(f"添加Cookie失败: {e}")
+                            except Exception as e:
+                                print(f"访问豆瓣首页失败: {e}")
+                        
+                        # 成功初始化，跳出循环
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        print(f"初始化Chrome浏览器失败 (尝试 {retry_count}/{max_retries}): {e}")
+                        
+                        # 如果之前创建了driver，确保关闭它
+                        if self.driver:
+                            try:
+                                self.driver.quit()
+                            except:
+                                pass
+                            self.driver = None
+                            
+                        # 如果达到最大重试次数，抛出异常
+                        if retry_count >= max_retries:
+                            raise Exception(f"多次尝试初始化浏览器失败: {e}")
+                            
+                        # 等待一段时间再重试
+                        time.sleep(2)
+            except Exception as e:
+                print(f"初始化Chrome浏览器失败: {e}")
+                raise
+            finally:
+                # 恢复标准输出
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
     
     def _close_driver(self):
         """关闭浏览器驱动"""
-        if self.browser:
+        if self.driver:
             try:
-                self.browser.quit()
+                self.driver.quit()
             except Exception as e:
                 print(f"关闭浏览器时出错: {e}")
             finally:
-                self.browser = None
+                self.driver = None
     
     def _random_sleep(self):
         """随机暂停，防止被封IP"""
@@ -131,9 +216,12 @@ class DoubanCrawler:
     def search_movie(self, keyword):
         """使用Selenium搜索电影"""
         try:
+            # 初始化驱动
+            self._initialize_driver()
+            
             # 对关键词进行URL编码
             encoded_keyword = urllib.parse.quote(keyword)
-            search_url = f"https://search.douban.com/movie/subject_search?search_text={encoded_keyword}&cat=1002"
+            search_url = self.search_url.format(encoded_keyword)
             
             # 添加重试机制
             max_retries = 3
@@ -142,7 +230,7 @@ class DoubanCrawler:
             while retry_count < max_retries:
                 try:
                     print(f"访问搜索页面: {search_url}")
-                    self.browser.get(search_url)
+                    self.driver.get(search_url)
                     break  # 成功访问，跳出循环
                 except TimeoutException:
                     print("页面加载超时，尝试刷新页面...")
@@ -150,7 +238,7 @@ class DoubanCrawler:
                     if retry_count >= max_retries:
                         print("多次尝试加载页面失败，尝试继续处理...")
                         break
-                    self.browser.refresh()  # 刷新页面
+                    self.driver.refresh()  # 刷新页面
                     time.sleep(2)  # 等待一段时间
                 except Exception as e:
                     print(f"访问搜索页面出错: {e}")
@@ -158,26 +246,26 @@ class DoubanCrawler:
             
             # 等待搜索结果加载
             try:
-                WebDriverWait(self.browser, 10).until(
+                WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, ".search-result, .item-root, a[href*='/subject/']"))
                 )
             except TimeoutException:
                 print("等待搜索结果超时，页面可能加载不完整")
             
             # 获取页面源码并解析
-            html = self.browser.page_source
+            html = self.driver.page_source
             
             # 尝试使用Selenium直接查找结果
-            search_items = self.browser.find_elements(By.CSS_SELECTOR, ".item-root")
+            search_items = self.driver.find_elements(By.CSS_SELECTOR, ".item-root")
             
             if not search_items or len(search_items) == 0:
                 print("未找到.item-root元素，尝试其他选择器")
-                search_items = self.browser.find_elements(By.CSS_SELECTOR, ".search-result .result, .search-result")
+                search_items = self.driver.find_elements(By.CSS_SELECTOR, ".search-result .result, .search-result")
             
             if not search_items or len(search_items) == 0:
                 print("未找到常规搜索结果元素，尝试查找任何电影链接")
                 # 如果还是没有找到，使用更通用的选择器
-                search_items = self.browser.find_elements(By.CSS_SELECTOR, "a[href*='/subject/']")
+                search_items = self.driver.find_elements(By.CSS_SELECTOR, "a[href*='/subject/']")
             
             # 结果列表
             result_list = []
@@ -306,11 +394,12 @@ class DoubanCrawler:
     def get_movie_details(self, url):
         """获取电影详情"""
         try:
+            self._initialize_driver()
             self._random_sleep()  # 随机延迟
             
             print(f"访问电影详情页: {url}")
             try:
-                self.browser.get(url)
+                self.driver.get(url)
             except TimeoutException:
                 print("页面加载超时，尝试继续处理...")
             except Exception as e:
@@ -319,14 +408,14 @@ class DoubanCrawler:
             
             # 等待页面加载完成
             try:
-                WebDriverWait(self.browser, 10).until(
+                WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "#content"))
                 )
             except TimeoutException:
                 print("等待页面加载超时，尝试继续处理")
             
             # 获取页面源码
-            html = self.browser.page_source
+            html = self.driver.page_source
             soup = BeautifulSoup(html, 'lxml')
             
             # 提取基本信息
@@ -334,14 +423,14 @@ class DoubanCrawler:
             
             # 标题
             try:
-                title_elems = self.browser.find_elements(By.CSS_SELECTOR, 'h1 span[property="v:itemreviewed"]')
+                title_elems = self.driver.find_elements(By.CSS_SELECTOR, 'h1 span[property="v:itemreviewed"]')
                 if title_elems:
                     original_title = title_elems[0].text.strip()
                     # 只保留第一个标题（如果有多个版本）
                     movie_data['title'] = self._clean_title(original_title)
                 else:
                     # 尝试从h1查找
-                    h1_elems = self.browser.find_elements(By.CSS_SELECTOR, 'h1')
+                    h1_elems = self.driver.find_elements(By.CSS_SELECTOR, 'h1')
                     if h1_elems:
                         original_title = h1_elems[0].text.replace('(', ' (').strip()
                         movie_data['title'] = self._clean_title(original_title)
@@ -353,7 +442,7 @@ class DoubanCrawler:
             
             # 又名 - 新增
             try:
-                info_elements = self.browser.find_elements(By.CSS_SELECTOR, '#info')
+                info_elements = self.driver.find_elements(By.CSS_SELECTOR, '#info')
                 if info_elements:
                     info_text = info_elements[0].text
                     
@@ -378,7 +467,7 @@ class DoubanCrawler:
             # 导演 - 包含链接
             try:
                 movie_data['directors'] = []
-                director_elements = self.browser.find_elements(By.CSS_SELECTOR, 'a[rel="v:directedBy"]')
+                director_elements = self.driver.find_elements(By.CSS_SELECTOR, 'a[rel="v:directedBy"]')
                 for director in director_elements:
                     name = director.text.strip()
                     link = director.get_attribute('href')
@@ -393,7 +482,7 @@ class DoubanCrawler:
             # 编剧 - 包含链接
             movie_data['screenwriters'] = []
             try:
-                info_elements = self.browser.find_elements(By.CSS_SELECTOR, '#info')
+                info_elements = self.driver.find_elements(By.CSS_SELECTOR, '#info')
                 if info_elements:
                     info_html = info_elements[0].get_attribute('innerHTML')
                     
@@ -419,7 +508,7 @@ class DoubanCrawler:
             # 主演 - 包含链接
             try:
                 movie_data['actors'] = []
-                actor_elements = self.browser.find_elements(By.CSS_SELECTOR, 'a[rel="v:starring"]')
+                actor_elements = self.driver.find_elements(By.CSS_SELECTOR, 'a[rel="v:starring"]')
                 for actor in actor_elements[:5]:  # 只取前5个主演
                     name = actor.text.strip()
                     link = actor.get_attribute('href')
@@ -433,7 +522,7 @@ class DoubanCrawler:
             
             # 类型
             try:
-                genres = self.browser.find_elements(By.CSS_SELECTOR, 'span[property="v:genre"]')
+                genres = self.driver.find_elements(By.CSS_SELECTOR, 'span[property="v:genre"]')
                 movie_data['genres'] = [g.text.strip() for g in genres]
             except Exception as e:
                 print(f"提取类型时出错: {e}")
@@ -441,7 +530,7 @@ class DoubanCrawler:
             
             # 上映日期 - 只保留第一个
             try:
-                release_dates = self.browser.find_elements(By.CSS_SELECTOR, 'span[property="v:initialReleaseDate"]')
+                release_dates = self.driver.find_elements(By.CSS_SELECTOR, 'span[property="v:initialReleaseDate"]')
                 if release_dates and len(release_dates) > 0:
                     movie_data['release_dates'] = [release_dates[0].text.strip()]
                 else:
@@ -452,7 +541,7 @@ class DoubanCrawler:
             
             # 提取IMDb ID - 修正为直接提取tt开头的ID
             try:
-                info_elements = self.browser.find_elements(By.CSS_SELECTOR, '#info')
+                info_elements = self.driver.find_elements(By.CSS_SELECTOR, '#info')
                 if info_elements:
                     info_html = info_elements[0].get_attribute('innerHTML')
                     
@@ -472,7 +561,7 @@ class DoubanCrawler:
             
             # 语言
             try:
-                info_elements = self.browser.find_elements(By.CSS_SELECTOR, '#info')
+                info_elements = self.driver.find_elements(By.CSS_SELECTOR, '#info')
                 if info_elements:
                     info_text = info_elements[0].text
                     
@@ -490,7 +579,7 @@ class DoubanCrawler:
             
             # 评分
             try:
-                rating_elems = self.browser.find_elements(By.CSS_SELECTOR, '.rating_num')
+                rating_elems = self.driver.find_elements(By.CSS_SELECTOR, '.rating_num')
                 if rating_elems:
                     movie_data['rating'] = rating_elems[0].text.strip()
                 else:
@@ -502,28 +591,28 @@ class DoubanCrawler:
             # 剧情简介 - 新增
             try:
                 # 先尝试获取展开后的简介
-                summary_expanded = self.browser.find_elements(By.CSS_SELECTOR, 'span[property="v:summary"]')
+                summary_expanded = self.driver.find_elements(By.CSS_SELECTOR, 'span[property="v:summary"]')
                 if summary_expanded and summary_expanded[0].text.strip():
                     summary_text = summary_expanded[0].text.strip()
                 else:
                     # 如果找不到展开的简介，尝试找短简介
-                    summary_short = self.browser.find_elements(By.CSS_SELECTOR, 'span.short')
+                    summary_short = self.driver.find_elements(By.CSS_SELECTOR, 'span.short')
                     if summary_short and summary_short[0].text.strip():
                         summary_text = summary_short[0].text.strip()
                     else:
                         # 尝试通过类获取
-                        summary_div = self.browser.find_elements(By.CSS_SELECTOR, 'div.indent span.all.hidden, div.indent span.short')
+                        summary_div = self.driver.find_elements(By.CSS_SELECTOR, 'div.indent span.all.hidden, div.indent span.short')
                         if summary_div and summary_div[0].text.strip():
                             summary_text = summary_div[0].text.strip()
                         else:
                             # 最后尝试找任何可能包含简介的元素
-                            summary_any = self.browser.find_elements(By.CSS_SELECTOR, 'div[id="link-report"] span, div.related-info div.indent')
+                            summary_any = self.driver.find_elements(By.CSS_SELECTOR, 'div[id="link-report"] span, div.related-info div.indent')
                             if summary_any and summary_any[0].text.strip():
                                 summary_text = summary_any[0].text.strip()
                             else:
                                 # 备用方案：找任何可能的简介内容
                                 summary_text = ""
-                                for elem in self.browser.find_elements(By.CSS_SELECTOR, '.related-info'):
+                                for elem in self.driver.find_elements(By.CSS_SELECTOR, '.related-info'):
                                     if '剧情简介' in elem.text or '简介' in elem.text:
                                         summary_content = elem.text.replace('剧情简介', '').replace('简介', '').strip()
                                         if summary_content:
@@ -556,12 +645,12 @@ class DoubanCrawler:
             
             # 封面图片
             try:
-                poster_elems = self.browser.find_elements(By.CSS_SELECTOR, '#mainpic img')
+                poster_elems = self.driver.find_elements(By.CSS_SELECTOR, '#mainpic img')
                 if poster_elems:
                     movie_data['poster'] = poster_elems[0].get_attribute('src')
                 else:
                     # 尝试其他可能的图片选择器
-                    poster_elems = self.browser.find_elements(By.CSS_SELECTOR, '.nbgnbg img, .cover img')
+                    poster_elems = self.driver.find_elements(By.CSS_SELECTOR, '.nbgnbg img, .cover img')
                     if poster_elems:
                         movie_data['poster'] = poster_elems[0].get_attribute('src')
                     else:

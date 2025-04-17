@@ -200,3 +200,77 @@ curl -X POST http://您的群晖IP:8000/search_and_add -H "Content-Type: applica
 ```
 
 您也可以通过浏览器访问API文档： http://您的群晖IP:8000/docs 
+
+## Docker部署常见问题
+
+### ChromeDriver错误
+
+如果遇到如下错误：
+```
+搜索电影出错: 多次尝试初始化浏览器失败: There is no such driver by url https://chromedriver.storage.googleapis.com/LATEST_RELEASE...
+```
+
+可能的解决方案：
+
+1. **重建Docker镜像**：
+   ```bash
+   docker-compose build --no-cache
+   ```
+
+2. **增加共享内存**：
+   Chrome在Docker容器中运行时需要足够的共享内存。确保docker-compose.yml中包含：
+   ```yaml
+   shm_size: 1gb
+   ```
+
+3. **检查环境变量**：
+   确保在容器中设置了以下环境变量：
+   ```
+   WDM_LOG_LEVEL=0
+   WDM_CHROME_VERSION=114.0.5735.198
+   ```
+
+### 连接问题
+
+如果API服务启动但无法访问：
+
+1. **检查端口映射**：
+   确保容器的8000端口已映射到主机端口
+
+2. **检查防火墙**：
+   确保主机防火墙允许8000端口的流量
+
+3. **检查API服务日志**：
+   ```bash
+   docker logs douban-notion
+   ```
+
+### Notion API连接问题
+
+如果无法连接到Notion API：
+
+1. **检查Notion令牌**：
+   确保`NOTION_TOKEN`环境变量设置正确
+
+2. **检查数据库ID**：
+   确保`NOTION_DATABASE_ID`环境变量设置正确
+   
+3. **检查Notion集成权限**：
+   确保Notion集成有权访问您的数据库
+
+### 性能优化建议
+
+1. **持久化Chrome数据**：
+   使用数据卷保存Chrome配置可以提高性能和稳定性
+
+2. **增加资源限制**：
+   如果爬虫经常崩溃，可以增加内存限制：
+   ```yaml
+   deploy:
+     resources:
+       limits:
+         memory: 2g
+   ```
+
+3. **使用代理**：
+   如果经常被豆瓣限制，可以配置代理服务器 
