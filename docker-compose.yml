@@ -14,5 +14,18 @@ services:
       - DOUBAN_LL=${DOUBAN_LL}
       - DOUBAN_DBCL2=${DOUBAN_DBCL2}
       - DOUBAN_CK=${DOUBAN_CK}
+      - CHROME_PATH=/usr/bin/google-chrome
+      - CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
     volumes:
-      - ~/.config/chromium:/root/.config/chromium  # 持久化Chrome配置，提高稳定性 
+      - douban_chrome:/root/.config/chromium # 持久化Chrome配置，提高稳定性
+      - /tmp:/tmp # 共享/tmp目录，解决Chrome临时文件问题
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py"]
+      interval: 1m
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+    shm_size: 2gb  # 增加共享内存大小，防止Chrome崩溃
+
+volumes:
+  douban_chrome: 

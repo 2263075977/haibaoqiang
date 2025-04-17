@@ -99,7 +99,27 @@ class DoubanCrawler:
                 
                 while retry_count < max_retries:
                     try:
-                        service = Service(ChromeDriverManager().install())
+                        # 检查环境变量中是否指定了ChromeDriver路径
+                        chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
+                        chrome_path = os.environ.get('CHROME_PATH')
+                        
+                        if chromedriver_path and os.path.exists(chromedriver_path):
+                            print(f"使用指定的ChromeDriver路径: {chromedriver_path}")
+                            service = Service(executable_path=chromedriver_path)
+                        else:
+                            print("使用webdriver-manager下载ChromeDriver")
+                            service = Service(ChromeDriverManager().install())
+                        
+                        # 如果指定了Chrome路径，添加到选项中
+                        if chrome_path and os.path.exists(chrome_path):
+                            print(f"使用指定的Chrome路径: {chrome_path}")
+                            self.chrome_options.binary_location = chrome_path
+                        
+                        # 为Docker环境添加额外参数
+                        self.chrome_options.add_argument('--no-sandbox')
+                        self.chrome_options.add_argument('--disable-dev-shm-usage')
+                        self.chrome_options.add_argument('--remote-debugging-port=9222')
+                        
                         self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
                         
                         # 设置页面加载超时
