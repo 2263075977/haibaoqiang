@@ -200,3 +200,78 @@ curl -X POST http://您的群晖IP:8000/search_and_add -H "Content-Type: applica
 ```
 
 您也可以通过浏览器访问API文档： http://您的群晖IP:8000/docs 
+
+## 常见问题与排错
+
+### Docker镜像构建或运行时的问题
+
+1. **ChromeDriver版本不匹配错误**
+
+   错误信息: `There is no such driver by url https://chromedriver.storage.googleapis.com/LATEST_RELEASE_XXX`
+   
+   解决方法:
+   - Docker环境中已经预安装了匹配的ChromeDriver
+   - 确保环境变量`CHROMEDRIVER_PATH`设置为`/usr/local/bin/chromedriver`
+
+2. **Chrome安装失败**
+
+   错误信息: `failed to solve: process "/bin/sh -c wget...`
+   
+   解决方法:
+   - 我们更新了Dockerfile使用官方源安装Chrome并自动匹配ChromeDriver版本
+   - 重新构建Docker镜像应该能解决问题
+
+3. **无法启动Chrome浏览器**
+
+   错误信息: `DevToolsActivePort file doesn't exist` 或 `unknown error: Chrome failed to start: crashed`
+   
+   解决方法:
+   - 在Chrome选项中添加参数: `--no-sandbox`, `--disable-dev-shm-usage`
+   - 这些参数已经在代码中添加，一般不需要修改
+
+### API服务问题
+
+1. **API返回404错误**
+
+   错误信息: `"POST /search_and_add HTTP/1.1" 404 Not Found`
+   
+   解决方法:
+   - 检查API服务是否正常启动，访问 http://群晖IP:8000/docs
+   - 确保API URL路径正确
+
+2. **无法连接到API服务**
+
+   错误信息: `Connection refused`
+   
+   解决方法:
+   - 检查容器是否正常运行: `docker ps`
+   - 检查端口映射是否正确
+   - 检查网络设置是否允许此端口访问
+
+### Notion API问题
+
+1. **Notion API验证失败**
+
+   错误信息: `无法访问Notion数据库`
+   
+   解决方法:
+   - 确认`.env`文件中的`NOTION_TOKEN`和`NOTION_DATABASE_ID`正确
+   - 确认Notion集成已经与数据库共享
+   - 检查Notion API权限设置
+
+2. **添加到Notion失败**
+
+   错误信息: `数据库属性名称不匹配`
+   
+   解决方法:
+   - 确认Notion数据库中有必要的属性，如"名称", "类别", "导演"等
+   - 确认属性类型正确，如"名称"应为标题类型，"评分"应为数字类型
+
+### 其他问题的解决方法
+
+如果遇到其他问题，可以尝试以下步骤:
+
+1. 检查容器日志: `docker logs douban-notion`
+2. 重启容器: `docker restart douban-notion`
+3. 拉取最新镜像重试: `docker-compose pull && docker-compose up -d`
+4. 如问题依然存在，请在GitHub项目中提交issue，附上错误日志 

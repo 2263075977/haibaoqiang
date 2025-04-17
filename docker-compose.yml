@@ -14,5 +14,9 @@ services:
       - DOUBAN_LL=${DOUBAN_LL}
       - DOUBAN_DBCL2=${DOUBAN_DBCL2}
       - DOUBAN_CK=${DOUBAN_CK}
+      - CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
+      - CHROME_BIN=/usr/bin/google-chrome-stable
+      - WDM_LOG_LEVEL=0
+      - WDM_PRINT_FIRST_LINE=False
     volumes:
       - ~/.config/chromium:/root/.config/chromium  # 持久化Chrome配置，提高稳定性 
