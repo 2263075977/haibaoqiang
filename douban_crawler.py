@@ -99,7 +99,18 @@ class DoubanCrawler:
                 
                 while retry_count < max_retries:
                     try:
-                        service = Service(ChromeDriverManager().install())
+                        # 检查环境变量中是否有ChromeDriver路径
+                        chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
+                        
+                        if chromedriver_path and os.path.exists(chromedriver_path):
+                            # 使用指定的ChromeDriver路径
+                            print(f"使用指定的ChromeDriver: {chromedriver_path}")
+                            service = Service(executable_path=chromedriver_path)
+                        else:
+                            # 尝试使用webdriver-manager下载
+                            print("使用webdriver-manager下载ChromeDriver")
+                            service = Service(ChromeDriverManager().install())
+                            
                         self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
                         
                         # 设置页面加载超时
