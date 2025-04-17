@@ -84,14 +84,17 @@ class DoubanCrawler:
                 
                 while retry_count < max_retries:
                     try:
-                        # 检查环境变量，判断是否在Docker环境中
-                        if os.environ.get('WDM_LOCAL') == '1' and os.environ.get('WDM_CHROMEDRIVER_PATH'):
-                            # Docker环境下使用预先下载的ChromeDriver
+                        # 首先检查预先下载的ChromeDriver
+                        if os.path.exists('/usr/local/bin/chromedriver'):
+                            print("使用预先下载的ChromeDriver: /usr/local/bin/chromedriver")
+                            service = Service('/usr/local/bin/chromedriver')
+                        # 再检查环境变量中指定的ChromeDriver
+                        elif os.environ.get('WDM_CHROMEDRIVER_PATH'):
                             chromedriver_path = os.environ.get('WDM_CHROMEDRIVER_PATH')
-                            print(f"使用预先下载的ChromeDriver: {chromedriver_path}")
+                            print(f"使用环境变量指定的ChromeDriver: {chromedriver_path}")
                             service = Service(chromedriver_path)
+                        # 否则尝试使用webdriver-manager下载
                         else:
-                            # 正常环境下使用webdriver-manager下载
                             print("使用webdriver-manager下载ChromeDriver")
                             service = Service(ChromeDriverManager().install())
                         
