@@ -16,11 +16,11 @@ RUN apt-get update && apt-get install -y \
     fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装Chrome使用官方仓库
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+# 安装特定版本的Chrome 114
+RUN wget -q -O chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.198-1_amd64.deb \
     && apt-get update \
-    && apt-get install -y google-chrome-stable \
+    && apt install -y ./chrome.deb \
+    && rm chrome.deb \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -33,6 +33,9 @@ RUN echo "安装ChromeDriver 114.0.5735.90..." \
     && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
     && rm /tmp/chromedriver.zip \
     && chmod +x /usr/local/bin/chromedriver
+
+# 验证Chrome和ChromeDriver版本
+RUN google-chrome --version && /usr/local/bin/chromedriver --version
 
 # 复制项目文件
 COPY requirements.txt .
