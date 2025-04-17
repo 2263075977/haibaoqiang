@@ -99,25 +99,8 @@ class DoubanCrawler:
                 
                 while retry_count < max_retries:
                     try:
-                        # 修改为直接使用预装的ChromeDriver
-                        chrome_options = self.chrome_options
-                        
-                        # 添加Docker环境特有的选项
-                        chrome_options.add_argument('--no-sandbox')
-                        chrome_options.add_argument('--disable-dev-shm-usage')
-                        chrome_options.add_argument('--headless')
-                        chrome_options.add_argument('--disable-gpu')
-                        
-                        # 检查是否在Docker环境中
-                        if os.path.exists('/.dockerenv'):
-                            print("检测到Docker环境，使用预装的ChromeDriver")
-                            # 在Docker中，直接使用预装的ChromeDriver
-                            self.driver = webdriver.Chrome(options=chrome_options)
-                        else:
-                            # 非Docker环境，使用webdriver-manager
-                            print("非Docker环境，使用webdriver-manager")
-                            service = Service(ChromeDriverManager().install())
-                            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                        service = Service(ChromeDriverManager().install())
+                        self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
                         
                         # 设置页面加载超时
                         self.driver.set_page_load_timeout(30)
