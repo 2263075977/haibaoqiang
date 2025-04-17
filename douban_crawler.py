@@ -41,11 +41,9 @@ class DoubanCrawler:
         self.chrome_options = Options()
         self.chrome_options.add_argument("--headless")  # 无头模式，不显示浏览器窗口
         self.chrome_options.add_argument("--disable-gpu")
-        self.chrome_options.add_argument("--no-sandbox")  # 在Docker中必须
-        self.chrome_options.add_argument("--disable-dev-shm-usage")  # 在Docker中必须
+        self.chrome_options.add_argument("--no-sandbox")
+        self.chrome_options.add_argument("--disable-dev-shm-usage")
         self.chrome_options.add_argument("--window-size=1920,1080")
-        self.chrome_options.add_argument("--disable-extensions")
-        self.chrome_options.add_argument("--disable-infobars")
         
         # 添加忽略SSL错误的选项
         self.chrome_options.add_argument("--ignore-certificate-errors")
@@ -58,13 +56,7 @@ class DoubanCrawler:
         self.chrome_options.add_experimental_option('useAutomationExtension', False)
         
         # 添加真实的User-Agent
-        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36")
-        
-        # 尝试使用环境变量中的Chrome二进制路径
-        chrome_bin = os.environ.get("CHROME_BIN")
-        if chrome_bin:
-            self.chrome_options.binary_location = chrome_bin
-            print(f"使用指定的Chrome二进制路径: {chrome_bin}")
+        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
         
         # 从环境变量中读取Cookie
         self.cookies = []
@@ -107,18 +99,7 @@ class DoubanCrawler:
                 
                 while retry_count < max_retries:
                     try:
-                        # 检查环境变量中是否有ChromeDriver路径
-                        chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
-                        
-                        if chromedriver_path and os.path.exists(chromedriver_path):
-                            # 使用指定的ChromeDriver路径
-                            print(f"使用指定的ChromeDriver: {chromedriver_path}")
-                            service = Service(executable_path=chromedriver_path)
-                        else:
-                            # 尝试使用webdriver-manager下载
-                            print("使用webdriver-manager下载ChromeDriver")
-                            service = Service(ChromeDriverManager().install())
-                            
+                        service = Service(ChromeDriverManager().install())
                         self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
                         
                         # 设置页面加载超时

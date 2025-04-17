@@ -1,22 +1,23 @@
 version: '3'
 
 services:
-  douban-notion:
-    image: ${DOCKER_REGISTRY}/douban-notion:latest
-    container_name: douban-notion
+  douban-notion-api:
+    image: ${IMAGE_NAME:-ghcr.io/your-username/douban-notion:latest}
+    container_name: douban-notion-api
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - NOTION_TOKEN=${NOTION_TOKEN}
       - NOTION_DATABASE_ID=${NOTION_DATABASE_ID}
-      - DOUBAN_BID=${DOUBAN_BID}
-      - DOUBAN_LL=${DOUBAN_LL}
-      - DOUBAN_DBCL2=${DOUBAN_DBCL2}
-      - DOUBAN_CK=${DOUBAN_CK}
-      - CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
-      - CHROME_BIN=/usr/bin/google-chrome-stable
-      - WDM_LOG_LEVEL=0
-      - WDM_PRINT_FIRST_LINE=False
+      - DOUBAN_BID=${DOUBAN_BID:-}
+      - DOUBAN_LL=${DOUBAN_LL:-}
+      - DOUBAN_DBCL2=${DOUBAN_DBCL2:-}
+      - DOUBAN_CK=${DOUBAN_CK:-}
     volumes:
-      - ~/.config/chromium:/root/.config/chromium  # 持久化Chrome配置，提高稳定性 
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3" 

@@ -2,7 +2,7 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# 安装Chrome依赖
+# 安装Chrome浏览器
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -11,43 +11,31 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libgconf-2-4 \
     libfontconfig1 \
-    ca-certificates \
-    fonts-liberation \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# 安装Chrome - 使用官方源
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 获取Chrome版本并下载匹配的ChromeDriver
-RUN CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d '.' -f 1-3) \
-    && CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}") \
-    && wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" \
-    && unzip chromedriver_linux64.zip -d /usr/local/bin/ \
-    && rm chromedriver_linux64.zip \
-    && chmod +x /usr/local/bin/chromedriver
-
-# 复制项目文件
+# 复制依赖文件并安装依赖
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 复制所有项目文件
 COPY . .
-
-# 环境变量配置
-ENV PYTHONUNBUFFERED=1
-
-# 设置Chrome和ChromeDriver相关环境变量
-ENV CHROME_BIN=/usr/bin/google-chrome-stable
-ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
-ENV WDM_LOG_LEVEL=0
-ENV WDM_PRINT_FIRST_LINE=False
 
 # 暴露API端口
 EXPOSE 8000
 
-# 启动命令
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1
+ENV NOTION_TOKEN=your_token_here
+ENV NOTION_DATABASE_ID=your_database_id_here
+
+# 使用非root用户运行
+RUN useradd -m appuser
+USER appuser
+
+# 运行API服务
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"] 

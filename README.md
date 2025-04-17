@@ -131,147 +131,86 @@ MIT
 
 ## Docker部署
 
-本项目支持通过Docker部署，并可以配合GitHub Actions自动构建镜像。
-
 ### 使用预构建镜像
 
-在群晖Docker上部署：
+```bash
+docker run -d --name douban-notion-api \
+  -p 8000:8000 \
+  -e NOTION_TOKEN=your_token_here \
+  -e NOTION_DATABASE_ID=your_database_id_here \
+  ghcr.io/your-username/douban-notion:latest
+```
 
-1. 在群晖Docker中添加映像，使用GitHub Container Registry地址：
-   ```
-   ghcr.io/[您的GitHub用户名]/douban-notion:main
-   ```
+### 使用Docker Compose
 
-2. 创建容器时设置环境变量：
-   - `NOTION_TOKEN`: Notion API密钥
-   - `NOTION_DATABASE_ID`: Notion数据库ID
-   - 可选的豆瓣Cookie: `DOUBAN_BID`, `DOUBAN_LL`, `DOUBAN_DBCL2`, `DOUBAN_CK`
+1. 克隆仓库
+```bash
+git clone https://github.com/your-username/douban-notion.git
+cd douban-notion
+```
 
-3. 设置端口映射：
-   - 容器端口: 8000
-   - 本地端口: 您希望使用的端口(如8000)
+2. 创建.env文件
+```
+NOTION_TOKEN=your_token_here
+NOTION_DATABASE_ID=your_database_id_here
+DOUBAN_BID=your_douban_bid
+DOUBAN_LL=your_douban_ll
+DOUBAN_DBCL2=your_douban_dbcl2
+DOUBAN_CK=your_douban_ck
+```
 
-### 使用docker-compose
+3. 启动服务
+```bash
+docker-compose up -d
+```
 
-1. 复制项目中的`docker-compose.yml`和`.env.example`文件到您的群晖
-2. 将`.env.example`重命名为`.env`并填入您的配置信息
-3. 执行以下命令启动服务：
+## 在群晖上部署
+
+### 方法一：使用Docker软件包
+
+1. 在群晖DSM中打开Docker应用
+2. 在"注册表"中搜索`ghcr.io/your-username/douban-notion`
+3. 下载最新版本镜像
+4. 在"映像"中找到下载的镜像，点击"启动"
+5. 配置端口映射：8000 -> 8000
+6. 添加环境变量：
+   - NOTION_TOKEN
+   - NOTION_DATABASE_ID
+   - 可选：DOUBAN_BID, DOUBAN_LL, DOUBAN_DBCL2, DOUBAN_CK
+7. 点击"应用"并启动容器
+
+### 方法二：使用Docker Compose
+
+1. 在群晖上安装Git和Docker Compose
    ```bash
+   # 通过SSH连接到群晖
+   sudo -i
+   apk add git docker-compose
+   ```
+
+2. 克隆仓库并部署
+   ```bash
+   git clone https://github.com/your-username/douban-notion.git
+   cd douban-notion
+   
+   # 创建环境变量文件
+   nano .env
+   # 添加必要的环境变量...
+   
+   # 启动服务
    docker-compose up -d
    ```
 
-## 自建镜像部署流程
+## GitHub自动构建
 
-### 1. 将项目推送到GitHub
+本项目已配置GitHub Actions自动构建流程：
 
-1. 在GitHub创建新仓库
-2. 初始化本地仓库并推送：
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/您的用户名/douban-notion.git
-   git push -u origin main
-   ```
+1. 推送代码到GitHub仓库的main分支
+2. GitHub Actions自动构建Docker镜像
+3. 镜像发布到GitHub Container Registry
+4. 版本标签会自动应用（基于git标签）
 
-### 2. 启用GitHub Actions
-
-1. 在GitHub仓库设置中，确保启用了GitHub Actions
-2. 在仓库设置 -> Secrets中添加必要的密钥（如果需要）
-3. 推送代码时会自动触发构建流程，构建完成后Docker镜像会被推送到GitHub Container Registry
-
-### 3. 在群晖上部署
-
-1. 在群晖Docker中登录GitHub Container Registry（如需要）
-2. 拉取自动构建的镜像
-3. 使用上述"使用预构建镜像"或"使用docker-compose"的方法部署
-
-## API调用示例
-
-使用Docker部署后，可以通过以下方式调用API：
-
-```bash
-# 搜索电影
-curl -X POST http://您的群晖IP:8000/search -H "Content-Type: application/json" -d '{"keyword":"电影名称"}'
-
-# 一站式服务（搜索并添加）
-curl -X POST http://您的群晖IP:8000/search_and_add -H "Content-Type: application/json" -d '{"keyword":"电影名称"}'
+您可以直接通过标签引用指定版本的镜像：
 ```
-
-您也可以通过浏览器访问API文档： http://您的群晖IP:8000/docs 
-
-## 常见问题与排错
-
-### Docker镜像构建或运行时的问题
-
-1. **ChromeDriver版本不匹配错误**
-
-   错误信息: `There is no such driver by url https://chromedriver.storage.googleapis.com/LATEST_RELEASE_XXX`
-   
-   解决方法:
-   - Docker环境中已经预安装了匹配的ChromeDriver
-   - 确保环境变量`CHROMEDRIVER_PATH`设置为`/usr/local/bin/chromedriver`
-
-2. **Chrome安装失败**
-
-   错误信息: `failed to solve: process "/bin/sh -c wget...`
-   
-   解决方法:
-   - 我们更新了Dockerfile使用官方源安装Chrome并自动匹配ChromeDriver版本
-   - 重新构建Docker镜像应该能解决问题
-
-3. **无法启动Chrome浏览器**
-
-   错误信息: `DevToolsActivePort file doesn't exist` 或 `unknown error: Chrome failed to start: crashed`
-   
-   解决方法:
-   - 在Chrome选项中添加参数: `--no-sandbox`, `--disable-dev-shm-usage`
-   - 这些参数已经在代码中添加，一般不需要修改
-
-### API服务问题
-
-1. **API返回404错误**
-
-   错误信息: `"POST /search_and_add HTTP/1.1" 404 Not Found`
-   
-   解决方法:
-   - 检查API服务是否正常启动，访问 http://群晖IP:8000/docs
-   - 确保API URL路径正确
-
-2. **无法连接到API服务**
-
-   错误信息: `Connection refused`
-   
-   解决方法:
-   - 检查容器是否正常运行: `docker ps`
-   - 检查端口映射是否正确
-   - 检查网络设置是否允许此端口访问
-
-### Notion API问题
-
-1. **Notion API验证失败**
-
-   错误信息: `无法访问Notion数据库`
-   
-   解决方法:
-   - 确认`.env`文件中的`NOTION_TOKEN`和`NOTION_DATABASE_ID`正确
-   - 确认Notion集成已经与数据库共享
-   - 检查Notion API权限设置
-
-2. **添加到Notion失败**
-
-   错误信息: `数据库属性名称不匹配`
-   
-   解决方法:
-   - 确认Notion数据库中有必要的属性，如"名称", "类别", "导演"等
-   - 确认属性类型正确，如"名称"应为标题类型，"评分"应为数字类型
-
-### 其他问题的解决方法
-
-如果遇到其他问题，可以尝试以下步骤:
-
-1. 检查容器日志: `docker logs douban-notion`
-2. 重启容器: `docker restart douban-notion`
-3. 拉取最新镜像重试: `docker-compose pull && docker-compose up -d`
-4. 如问题依然存在，请在GitHub项目中提交issue，附上错误日志 
+ghcr.io/your-username/douban-notion:v1.0.0
+``` 
