@@ -61,6 +61,8 @@
 
 ## 使用方法
 
+### 命令行模式
+
 运行主程序：
 
 ```bash
@@ -73,6 +75,50 @@ python main.py
 
 操作简单，一键完成从搜索到添加的全过程。
 
+### API服务模式
+
+启动API服务器：
+
+```bash
+python api.py
+```
+
+服务启动后，将在 http://localhost:8000 提供以下API端点：
+
+- **POST /search** - 搜索电影
+  ```json
+  {"keyword": "电影名称"}
+  ```
+
+- **POST /movie/details** - 获取电影详情
+  ```json
+  {"url": "豆瓣电影URL"}
+  ```
+
+- **POST /add_to_notion** - 添加电影到Notion
+  ```json
+  {"movie_data": {...电影详细信息...}}
+  ```
+
+- **POST /search_and_add** - 一站式搜索并添加
+  ```json
+  {"keyword": "电影名称"}
+  ```
+
+API服务器自带交互式文档，访问 http://localhost:8000/docs 查看详细API说明。
+
+### API客户端示例
+
+提供了示例客户端脚本，展示如何调用API：
+
+```bash
+# 一站式模式
+python api_client_example.py 电影名称
+
+# 分步骤模式
+python api_client_example.py --steps 电影名称
+```
+
 ## 注意事项
 
 - 本工具仅供个人学习和研究使用
@@ -82,3 +128,75 @@ python main.py
 ## 许可证
 
 MIT 
+
+## Docker部署
+
+本项目支持通过Docker部署，并可以配合GitHub Actions自动构建镜像。
+
+### 使用预构建镜像
+
+在群晖Docker上部署：
+
+1. 在群晖Docker中添加映像，使用GitHub Container Registry地址：
+   ```
+   ghcr.io/[您的GitHub用户名]/douban-notion:main
+   ```
+
+2. 创建容器时设置环境变量：
+   - `NOTION_TOKEN`: Notion API密钥
+   - `NOTION_DATABASE_ID`: Notion数据库ID
+   - 可选的豆瓣Cookie: `DOUBAN_BID`, `DOUBAN_LL`, `DOUBAN_DBCL2`, `DOUBAN_CK`
+
+3. 设置端口映射：
+   - 容器端口: 8000
+   - 本地端口: 您希望使用的端口(如8000)
+
+### 使用docker-compose
+
+1. 复制项目中的`docker-compose.yml`和`.env.example`文件到您的群晖
+2. 将`.env.example`重命名为`.env`并填入您的配置信息
+3. 执行以下命令启动服务：
+   ```bash
+   docker-compose up -d
+   ```
+
+## 自建镜像部署流程
+
+### 1. 将项目推送到GitHub
+
+1. 在GitHub创建新仓库
+2. 初始化本地仓库并推送：
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin https://github.com/您的用户名/douban-notion.git
+   git push -u origin main
+   ```
+
+### 2. 启用GitHub Actions
+
+1. 在GitHub仓库设置中，确保启用了GitHub Actions
+2. 在仓库设置 -> Secrets中添加必要的密钥（如果需要）
+3. 推送代码时会自动触发构建流程，构建完成后Docker镜像会被推送到GitHub Container Registry
+
+### 3. 在群晖上部署
+
+1. 在群晖Docker中登录GitHub Container Registry（如需要）
+2. 拉取自动构建的镜像
+3. 使用上述"使用预构建镜像"或"使用docker-compose"的方法部署
+
+## API调用示例
+
+使用Docker部署后，可以通过以下方式调用API：
+
+```bash
+# 搜索电影
+curl -X POST http://您的群晖IP:8000/search -H "Content-Type: application/json" -d '{"keyword":"电影名称"}'
+
+# 一站式服务（搜索并添加）
+curl -X POST http://您的群晖IP:8000/search_and_add -H "Content-Type: application/json" -d '{"keyword":"电影名称"}'
+```
+
+您也可以通过浏览器访问API文档： http://您的群晖IP:8000/docs 

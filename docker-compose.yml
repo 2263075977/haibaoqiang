@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  douban-notion:
+    image: ${DOCKER_REGISTRY}/douban-notion:latest
+    container_name: douban-notion
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - NOTION_TOKEN=${NOTION_TOKEN}
+      - NOTION_DATABASE_ID=${NOTION_DATABASE_ID}
+      - DOUBAN_BID=${DOUBAN_BID}
+      - DOUBAN_LL=${DOUBAN_LL}
+      - DOUBAN_DBCL2=${DOUBAN_DBCL2}
+      - DOUBAN_CK=${DOUBAN_CK}
+    volumes:
+      - ~/.config/chromium:/root/.config/chromium  # 持久化Chrome配置，提高稳定性 

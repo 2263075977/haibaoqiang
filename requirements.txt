@@ -5,4 +5,7 @@ lxml==4.9.3
 notion-client==2.0.0
 python-dotenv==1.0.0
 urllib3==1.26.16
-requests==2.31.0 
+requests==2.31.0
+fastapi==0.103.1
+uvicorn==0.23.2
+pydantic==2.4.2 
