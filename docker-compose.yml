@@ -1,23 +1,20 @@
 version: '3'
 
 services:
-  douban-notion-api:
-    image: ${IMAGE_NAME:-ghcr.io/your-username/douban-notion:latest}
-    container_name: douban-notion-api
+  douban-notion-sync:
+    image: ${DOCKER_USERNAME}/douban-notion-sync:latest
+    container_name: douban-notion-sync
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "6000:6000"
     environment:
-      - NOTION_TOKEN=${NOTION_TOKEN}
       - NOTION_DATABASE_ID=${NOTION_DATABASE_ID}
-      - DOUBAN_BID=${DOUBAN_BID:-}
-      - DOUBAN_LL=${DOUBAN_LL:-}
-      - DOUBAN_DBCL2=${DOUBAN_DBCL2:-}
-      - DOUBAN_CK=${DOUBAN_CK:-}
+      - NOTION_TOKEN=${NOTION_TOKEN}
     volumes:
-      - /etc/localtime:/etc/localtime:ro
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3" 
+      - ./logs:/app/logs
+    networks:
+      - douban-net
+
+networks:
+  douban-net:
+    driver: bridge 
