@@ -148,7 +148,7 @@ python api_server.py --port 6000
 
 1. 构建Docker镜像：
    ```bash
-   docker build -t douban-notion-sync .
+   docker build -t haibaoqiang .
    ```
 
 2. 运行容器：
@@ -156,8 +156,8 @@ python api_server.py --port 6000
    docker run -d -p 6000:6000 \
      -e NOTION_DATABASE_ID=你的数据库ID \
      -e NOTION_TOKEN=你的API令牌 \
-     --name douban-notion-sync \
-     douban-notion-sync
+     --name haibaoqiang \
+     haibaoqiang
    ```
 
 ### 使用Docker Compose
@@ -175,7 +175,7 @@ python api_server.py --port 6000
 
 ### 在群晖Docker上部署
 
-1. 在Docker注册表中添加镜像：`你的DockerHub用户名/douban-notion-sync:latest`
+1. 在Docker注册表中添加镜像：`你的DockerHub用户名/haibaoqiang:latest`
 2. 下载镜像并创建容器
 3. 在"高级设置"中：
    - 添加环境变量：`NOTION_DATABASE_ID`和`NOTION_TOKEN`

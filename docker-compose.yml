@@ -1,9 +1,9 @@
 version: '3'
 
 services:
-  douban-notion-sync:
-    image: ${DOCKER_USERNAME}/douban-notion-sync:latest
-    container_name: douban-notion-sync
+  haibaoqiang:
+    image: ${DOCKER_USERNAME}/haibaoqiang:latest
+    container_name: haibaoqiang
     restart: unless-stopped
     ports:
       - "6000:6000"
