@@ -90,7 +90,8 @@ class DoubanParser:
             director_elems = await page.query_selector_all('a[rel="v:directedBy"]')
             for director_elem in director_elems:
                 name = await director_elem.text_content()
-                directors.append(name.strip())
+                url = await director_elem.get_attribute('href')
+                directors.append({"name": name.strip(), "url": url})
             movie_data['directors'] = directors
         except Exception as e:
             logger.error(f"提取导演出错: {e}")
@@ -109,7 +110,7 @@ class DoubanParser:
                     # 提取所有<a>标签
                     sw_links = re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', screenwriter_html)
                     for url, name in sw_links:
-                        screenwriters.append(name.strip())
+                        screenwriters.append({"name": name.strip(), "url": url})
             movie_data['screenwriters'] = screenwriters
         except Exception as e:
             logger.error(f"提取编剧出错: {e}")
@@ -121,7 +122,8 @@ class DoubanParser:
             actor_elems = await page.query_selector_all('a[rel="v:starring"]')
             for actor_elem in actor_elems[:5]:  # 只取前5名
                 name = await actor_elem.text_content()
-                actors.append(name.strip())
+                url = await actor_elem.get_attribute('href')
+                actors.append({"name": name.strip(), "url": url})
             movie_data['actors'] = actors
         except Exception as e:
             logger.error(f"提取主演出错: {e}")
@@ -198,12 +200,8 @@ class DoubanParser:
             release_elem = await page.query_selector('span[property="v:initialReleaseDate"]')
             if release_elem:
                 release_text = await release_elem.text_content()
-                # 提取日期部分（可能包含国家/地区信息）
-                date_match = re.search(r'(\d{4}-\d{2}-\d{2}|\d{4}-\d{2}|\d{4})', release_text)
-                if date_match:
-                    movie_data['release_date'] = date_match.group(1)
-                else:
-                    movie_data['release_date'] = release_text.strip()
+                # 保留完整日期文本，包括地区信息
+                movie_data['release_date'] = release_text.strip()
             else:
                 movie_data['release_date'] = None
         except Exception as e:
@@ -265,4 +263,42 @@ class DoubanParser:
             logger.error(f"确定内容类型出错: {e}")
             movie_data['category'] = "电影"  # 默认为电影
             
+        # 提取封面图URL
+        try:
+            cover_elem = await page.query_selector('div#mainpic img')
+            if cover_elem:
+                cover_url = await cover_elem.get_attribute('src')
+                # 尝试获取更高质量的图片
+                if cover_url:
+                    # 豆瓣图片链接通常有小中大三种尺寸，尝试获取大图
+                    # s_ratio_poster -> l_ratio_poster
+                    cover_url = re.sub(r's_ratio_poster', 'l_ratio_poster', cover_url)
+                    # webp.image -> large.image
+                    cover_url = re.sub(r'webp\.image', 'large.image', cover_url)
+                    # x-small -> large
+                    cover_url = re.sub(r'x-small', 'large', cover_url)
+                    
+                    # 确保URL有效，并且能够被Notion访问
+                    # 处理一些特殊的URL格式问题
+                    if '?' in cover_url:
+                        cover_url = cover_url.split('?')[0]
+                    
+                    # 豆瓣的图片服务器可能被Notion封锁，尝试替换为CDN域名
+                    if 'img1.doubanio.com' in cover_url:
+                        cover_url = cover_url.replace('img1.doubanio.com', 'img9.doubanio.com')
+                    elif 'img2.doubanio.com' in cover_url:
+                        cover_url = cover_url.replace('img2.doubanio.com', 'img9.doubanio.com')
+                    
+                    logger.info(f"提取到封面URL: {cover_url}")
+                    movie_data['cover_url'] = cover_url
+                else:
+                    logger.warning("未能提取到封面图URL属性")
+                    movie_data['cover_url'] = None
+            else:
+                logger.warning("未找到封面图元素")
+                movie_data['cover_url'] = None
+        except Exception as e:
+            logger.error(f"提取封面图URL出错: {e}")
+            movie_data['cover_url'] = None
+        
         return movie_data 

@@ -3,6 +3,8 @@
 """
 import logging
 import os
+import sys
+import codecs
 from datetime import datetime
 
 # 日志目录
@@ -20,6 +22,21 @@ LOG_LEVEL = logging.INFO
 LOG_FORMAT = '%(asctime)s - %(name)15s - %(levelname)8s - %(message)s'
 # 时间格式 - 不包含毫秒
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+# 设置控制台编码为UTF-8（Windows环境）
+if sys.platform == 'win32':
+    # 修改控制台编码为UTF-8
+    try:
+        # Python 3.7+
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stderr.reconfigure(encoding='utf-8')
+        # 旧版Python
+        else:
+            sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
+            sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer)
+    except Exception as e:
+        print(f"设置控制台UTF-8编码失败: {e}")
 
 def setup_logger(name, log_file=None, level=None):
     """
@@ -43,8 +60,8 @@ def setup_logger(name, log_file=None, level=None):
     if logger.handlers:
         logger.handlers.clear()
     
-    # 创建文件处理器
-    file_handler = logging.FileHandler(log_file)
+    # 创建文件处理器，使用UTF-8编码
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setLevel(level)
     
     # 创建控制台处理器

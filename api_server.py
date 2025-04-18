@@ -2,6 +2,7 @@
 API服务器启动程序
 """
 import os
+import sys
 import argparse
 from api.server import run_server
 from config.logging_config import setup_logger
@@ -11,6 +12,12 @@ logger = setup_logger("api_launcher")
 
 def main():
     """主程序入口"""
+    # 确认控制台使用UTF-8编码
+    if sys.platform == 'win32':
+        logger.info("Windows环境: 控制台编码 %s", sys.stdout.encoding)
+    else:
+        logger.info("非Windows环境: 控制台编码 %s", sys.stdout.encoding)
+    
     parser = argparse.ArgumentParser(description="豆瓣影视数据API服务器")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="服务器监听地址")
     parser.add_argument("--port", type=int, default=6000, help="服务器端口")

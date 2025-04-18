@@ -2,6 +2,7 @@
 豆瓣影视数据爬取与Notion同步主程序
 """
 import os
+import sys
 import asyncio
 
 from config.logging_config import setup_logger
@@ -12,6 +13,15 @@ from sync.notion_sync import NotionSyncModule, test_database_connection
 
 # 创建日志记录器
 logger = setup_logger("main")
+
+# 确保Windows环境下使用UTF-8编码进行输入输出
+if sys.platform == 'win32':
+    # 检查编码
+    logger.info(f"当前控制台编码: {sys.stdout.encoding}")
+    
+    # 设置控制台输入为UTF-8模式
+    if hasattr(sys.stdin, 'reconfigure'):
+        sys.stdin.reconfigure(encoding='utf-8')
 
 async def scrape_and_sync_movie(title: str):
     """

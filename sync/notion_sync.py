@@ -85,26 +85,92 @@ class NotionSyncModule(BaseSyncModule):
                 "select": {"name": movie_data["category"]}
             }
             
-        # 导演 (富文本类型)：导演信息
+        # 导演 (富文本类型)：导演信息，带链接
         if "directors" in movie_data and movie_data["directors"]:
-            directors_text = ", ".join(movie_data["directors"])
-            properties["导演"] = {
-                "rich_text": [{"text": {"content": directors_text}}]
-            }
+            rich_text_array = []
+            for i, director in enumerate(movie_data["directors"]):
+                # 添加导演名称，带链接
+                if isinstance(director, dict) and "url" in director and "name" in director:
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {
+                            "content": director["name"],
+                            "link": {"url": director["url"]}
+                        }
+                    })
+                else:
+                    # 兼容旧数据格式
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {"content": director if isinstance(director, str) else director.get("name", "")}
+                    })
+                
+                # 添加分隔符，除了最后一个
+                if i < len(movie_data["directors"]) - 1:
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {"content": " / "}
+                    })
+            
+            properties["导演"] = {"rich_text": rich_text_array}
         
-        # 编剧 (富文本类型)：编剧信息
+        # 编剧 (富文本类型)：编剧信息，带链接
         if "screenwriters" in movie_data and movie_data["screenwriters"]:
-            screenwriters_text = ", ".join(movie_data["screenwriters"])
-            properties["编剧"] = {
-                "rich_text": [{"text": {"content": screenwriters_text}}]
-            }
+            rich_text_array = []
+            for i, screenwriter in enumerate(movie_data["screenwriters"]):
+                # 添加编剧名称，带链接
+                if isinstance(screenwriter, dict) and "url" in screenwriter and "name" in screenwriter:
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {
+                            "content": screenwriter["name"],
+                            "link": {"url": screenwriter["url"]}
+                        }
+                    })
+                else:
+                    # 兼容旧数据格式
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {"content": screenwriter if isinstance(screenwriter, str) else screenwriter.get("name", "")}
+                    })
+                
+                # 添加分隔符，除了最后一个
+                if i < len(movie_data["screenwriters"]) - 1:
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {"content": " / "}
+                    })
+            
+            properties["编剧"] = {"rich_text": rich_text_array}
         
-        # 主演 (富文本类型)：演员信息
+        # 主演 (富文本类型)：演员信息，带链接
         if "actors" in movie_data and movie_data["actors"]:
-            actors_text = ", ".join(movie_data["actors"])
-            properties["主演"] = {
-                "rich_text": [{"text": {"content": actors_text}}]
-            }
+            rich_text_array = []
+            for i, actor in enumerate(movie_data["actors"]):
+                # 添加演员名称，带链接
+                if isinstance(actor, dict) and "url" in actor and "name" in actor:
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {
+                            "content": actor["name"],
+                            "link": {"url": actor["url"]}
+                        }
+                    })
+                else:
+                    # 兼容旧数据格式
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {"content": actor if isinstance(actor, str) else actor.get("name", "")}
+                    })
+                
+                # 添加分隔符，除了最后一个
+                if i < len(movie_data["actors"]) - 1:
+                    rich_text_array.append({
+                        "type": "text",
+                        "text": {"content": " / "}
+                    })
+            
+            properties["主演"] = {"rich_text": rich_text_array}
         
         # 类型 (多选类型)：影片类型标签
         if "genres" in movie_data and movie_data["genres"]:
@@ -130,7 +196,7 @@ class NotionSyncModule(BaseSyncModule):
                 "rich_text": [{"text": {"content": movie_data["imdb_id"]}}]
             }
         
-        # 首播 (富文本类型)：上映日期
+        # 首播 (富文本类型)：上映日期，完整保留包括地区信息
         if "release_date" in movie_data:
             properties["首播"] = {
                 "rich_text": [{"text": {"content": movie_data["release_date"]}}]
@@ -155,12 +221,106 @@ class NotionSyncModule(BaseSyncModule):
         
         return properties
     
-    def add_to_database(self, properties: Dict) -> Dict:
+    def _get_rating_icon(self, rating: float) -> Dict:
+        """
+        根据评分获取对应的图标配置
+        
+        Args:
+            rating: 电影评分
+            
+        Returns:
+            图标配置字典
+        """
+        if rating is None:
+            return None
+            
+        # 对评分进行四舍五入，9分以上都算9
+        rounded_rating = min(9, round(rating))
+        
+        # 映射评分到数字按键表情符号
+        keycap_emojis = {
+            0: "0️⃣",
+            1: "1️⃣",
+            2: "2️⃣",
+            3: "3️⃣",
+            4: "4️⃣",
+            5: "5️⃣",
+            6: "6️⃣",
+            7: "7️⃣",
+            8: "8️⃣",
+            9: "9️⃣"
+        }
+        
+        # 获取对应的按键表情
+        emoji = keycap_emojis.get(rounded_rating, "0️⃣")
+        
+        return {
+            "type": "emoji",
+            "emoji": emoji
+        }
+
+    def _is_valid_image_url(self, url: str) -> bool:
+        """
+        检查URL是否是有效的图片URL
+        
+        Args:
+            url: 图片URL
+            
+        Returns:
+            是否有效
+        """
+        if not url:
+            return False
+            
+        # 检查URL是否以http/https开头
+        if not (url.startswith('http://') or url.startswith('https://')):
+            return False
+            
+        # 检查URL是否以常见图片扩展名结尾
+        image_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp']
+        if not any(url.lower().endswith(ext) for ext in image_extensions):
+            # 如果不是明确的图片扩展名，检查URL中是否包含这些扩展名
+            if not any(f'.{ext}' in url.lower() for ext in ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp']):
+                return False
+                
+        return True
+
+    def _process_cover_url(self, url: str) -> str:
+        """
+        处理封面URL，确保其能被Notion正确显示
+        
+        Args:
+            url: 原始封面URL
+            
+        Returns:
+            处理后的URL
+        """
+        if not url:
+            return None
+            
+        # 移除URL中的查询参数
+        if '?' in url:
+            url = url.split('?')[0]
+            
+        # 确保URL是https，Notion可能不支持http
+        if url.startswith('http://'):
+            url = 'https://' + url[7:]
+            
+        # 检查是否是有效的图片URL
+        if not self._is_valid_image_url(url):
+            logger.warning(f"无效的图片URL格式: {url}")
+            return None
+            
+        return url
+
+    def add_to_database(self, properties: Dict, cover_url: str = None, rating: float = None) -> Dict:
         """
         向Notion数据库添加新记录
         
         Args:
             properties: Notion格式的属性字典
+            cover_url: 封面图片URL
+            rating: 电影评分
             
         Returns:
             API响应
@@ -171,20 +331,53 @@ class NotionSyncModule(BaseSyncModule):
             "properties": properties
         }
         
+        # 设置封面图片
+        processed_cover_url = self._process_cover_url(cover_url)
+        if processed_cover_url:
+            logger.info(f"设置页面封面，原始URL: {cover_url}")
+            logger.info(f"处理后的URL: {processed_cover_url}")
+            payload["cover"] = {
+                "type": "external",
+                "external": {
+                    "url": processed_cover_url
+                }
+            }
+        else:
+            logger.warning(f"未能设置封面，无效的URL: {cover_url}")
+        
+        # 设置图标(根据评分)
+        icon = self._get_rating_icon(rating)
+        if icon:
+            payload["icon"] = icon
+        
         # 记录请求内容用于调试
         logger.debug(f"API请求payload: {json.dumps(payload, ensure_ascii=False)[:500]}...")
         
-        response = self._make_api_request("POST", url, payload)
-        logger.info(f"已成功向数据库添加新记录: {response.get('id')}")
-        return response
-    
-    def update_database_item(self, item_id: str, properties: Dict) -> Dict:
+        try:
+            response = self._make_api_request("POST", url, payload)
+            logger.info(f"已成功向数据库添加新记录: {response.get('id')}")
+            return response
+        except Exception as e:
+            logger.error(f"添加数据库记录失败: {e}")
+            
+            # 如果失败了，尝试不带封面再次添加
+            if processed_cover_url and "cover" in payload:
+                logger.warning("尝试不带封面重新添加记录")
+                del payload["cover"]
+                return self._make_api_request("POST", url, payload)
+            else:
+                # 重新抛出异常
+                raise
+
+    def update_database_item(self, item_id: str, properties: Dict, cover_url: str = None, rating: float = None) -> Dict:
         """
         更新Notion数据库中的记录
         
         Args:
             item_id: 数据库记录ID
             properties: Notion格式的属性字典
+            cover_url: 封面图片URL
+            rating: 电影评分
             
         Returns:
             API响应
@@ -192,9 +385,37 @@ class NotionSyncModule(BaseSyncModule):
         url = f"{self.api_base_url}/pages/{item_id}"
         payload = {"properties": properties}
         
-        response = self._make_api_request("PATCH", url, payload)
-        logger.info(f"已成功更新数据库记录: {item_id}")
-        return response
+        # 设置封面图片
+        processed_cover_url = self._process_cover_url(cover_url)
+        if processed_cover_url:
+            logger.info(f"设置页面封面，处理后的URL: {processed_cover_url}")
+            payload["cover"] = {
+                "type": "external",
+                "external": {
+                    "url": processed_cover_url
+                }
+            }
+        
+        # 设置图标(根据评分)
+        icon = self._get_rating_icon(rating)
+        if icon:
+            payload["icon"] = icon
+        
+        try:
+            response = self._make_api_request("PATCH", url, payload)
+            logger.info(f"已成功更新数据库记录: {item_id}")
+            return response
+        except Exception as e:
+            logger.error(f"更新数据库记录失败: {e}")
+            
+            # 如果失败了，尝试不带封面再次更新
+            if processed_cover_url and "cover" in payload:
+                logger.warning("尝试不带封面重新更新记录")
+                del payload["cover"]
+                return self._make_api_request("PATCH", url, payload)
+            else:
+                # 重新抛出异常
+                raise
     
     def sync_data(self, movie_data: Dict) -> Dict:
         """
@@ -224,9 +445,19 @@ class NotionSyncModule(BaseSyncModule):
         # 转换为Notion属性格式
         properties = self.convert_to_notion_properties(movie_data)
         
+        # 获取封面URL和评分
+        cover_url = movie_data.get('cover_url')
+        rating = movie_data.get('rating')
+        
         # 直接添加到数据库，不再判断是否存在
-        response = self.add_to_database(properties)
-        result = {"status": "added", "item_id": response.get("id"), "title": movie_data.get("title")}
+        response = self.add_to_database(properties, cover_url, rating)
+        result = {
+            "status": "added", 
+            "item_id": response.get("id"), 
+            "title": movie_data.get("title"),
+            "has_cover": bool(cover_url),
+            "rating": rating
+        }
         
         return result
     

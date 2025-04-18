@@ -102,6 +102,12 @@ async def scrape_and_sync_movie_async(title: str) -> Dict[str, Any]:
             
             logger.info(f"成功获取电影数据: {movie_data.get('title')} ({movie_data.get('category')}, 评分: {movie_data.get('rating')})")
             
+            # 检查封面URL
+            if movie_data.get('cover_url'):
+                logger.info(f"获取到封面URL: {movie_data.get('cover_url')}")
+            else:
+                logger.warning("未获取到封面URL")
+            
             # 同步到Notion
             sync_result = notion_sync.sync_movie(movie_data)
             logger.info(f"同步结果: {sync_result}")
@@ -113,7 +119,10 @@ async def scrape_and_sync_movie_async(title: str) -> Dict[str, Any]:
                 "title": movie_data.get("title"),
                 "category": movie_data.get("category"),
                 "rating": movie_data.get("rating"),
-                "notion_page_id": sync_result.get("item_id")
+                "rounded_rating": min(9, round(movie_data.get("rating", 0)) if movie_data.get("rating") else 0),
+                "notion_page_id": sync_result.get("item_id"),
+                "cover_url": movie_data.get("cover_url"),
+                "has_cover": sync_result.get("has_cover", False)
             }
             
     except Exception as e:
